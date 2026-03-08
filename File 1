@@ -1,1 +1,1145 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TicketLog — Problem & Incident Management</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --ink: #0e0e0e;
+    --cream: #f5f0e8;
+    --warm: #ede8dc;
+    --amber: #d4840a;
+    --amber-lt: #f0a832;
+    --red: #c0392b;
+    --red-lt: #e74c3c;
+    --teal: #0d7377;
+    --teal-lt: #14a085;
+    --border: #d6cfc0;
+    --muted: #7a7060;
+    --card: #faf7f2;
+    --shadow: 0 2px 24px rgba(14,14,14,.08);
+    --shadow-lg: 0 8px 48px rgba(14,14,14,.14);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--cream);
+    color: var(--ink);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 400;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--warm); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp   { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes slideIn  { from { opacity:0; transform:translateX(-16px); } to { opacity:1; transform:translateX(0); } }
+  @keyframes ticker   { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+  @keyframes pulse    { 0%,100%{opacity:1;} 50%{opacity:.5;} }
+  @keyframes drawLine { from{width:0;} to{width:100%;} }
+  .reveal { opacity:0; transform:translateY(24px); transition: opacity .6s ease, transform .6s ease; }
+  .reveal.visible { opacity:1; transform:translateY(0); }
+
+  /* ── LAYOUT ── */
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 40px; }
+  section { padding: 96px 0; }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed; top:0; left:0; right:0; z-index:999;
+    background: rgba(245,240,232,.95); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    height: 64px; display:flex; align-items:center;
+  }
+  .nav-inner {
+    width:100%; max-width:1200px; margin:0 auto; padding:0 40px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .nav-logo {
+    font-family:'Playfair Display',serif; font-weight:900; font-size:22px;
+    color:var(--ink); text-decoration:none; display:flex; align-items:center; gap:10px;
+  }
+  .nav-logo span.dot {
+    width:8px; height:8px; border-radius:50%; background:var(--amber);
+    display:inline-block; animation:pulse 2s infinite;
+  }
+  .nav-links { display:flex; gap:32px; list-style:none; }
+  .nav-links a {
+    color:var(--muted); text-decoration:none; font-size:13px; font-weight:500;
+    letter-spacing:.5px; text-transform:uppercase; transition:color .2s;
+  }
+  .nav-links a:hover { color:var(--ink); }
+  .nav-cta {
+    background:var(--ink); color:var(--cream); border:none;
+    padding:9px 22px; border-radius:4px; font-size:13px; font-weight:600;
+    cursor:pointer; font-family:'DM Sans',sans-serif; letter-spacing:.3px;
+    transition:background .2s;
+  }
+  .nav-cta:hover { background: var(--amber); }
+
+  /* ── TICKER ── */
+  .ticker-wrap {
+    background:var(--ink); overflow:hidden; white-space:nowrap; padding:9px 0;
+    position:relative; margin-top:64px;
+  }
+  .ticker-inner {
+    display:inline-flex; animation:ticker 28s linear infinite;
+  }
+  .ticker-item {
+    font-family:'DM Mono',monospace; font-size:11px; color:var(--amber-lt);
+    padding:0 48px; letter-spacing:1px; text-transform:uppercase;
+  }
+  .ticker-sep { color:#444; }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: calc(100vh - 96px);
+    display:grid; grid-template-columns:1fr 1fr; align-items:center; gap:64px;
+    padding-top: 80px; padding-bottom: 80px;
+    position:relative; overflow:hidden;
+  }
+  .hero::before {
+    content:'';position:absolute;top:-120px;right:-120px;
+    width:500px;height:500px;border-radius:50%;
+    background:radial-gradient(circle,rgba(212,132,10,.12) 0%,transparent 70%);
+    pointer-events:none;
+  }
+  .hero-eyebrow {
+    font-family:'DM Mono',monospace; font-size:11px; color:var(--amber);
+    letter-spacing:3px; text-transform:uppercase; margin-bottom:20px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .hero-eyebrow::before { content:''; flex:0 0 32px; height:1px; background:var(--amber); }
+  .hero h1 {
+    font-family:'Playfair Display',serif; font-size:clamp(48px,5vw,76px);
+    font-weight:900; line-height:1.05; letter-spacing:-1.5px;
+    color:var(--ink); margin-bottom:28px;
+  }
+  .hero h1 em { font-style:italic; color:var(--amber); }
+  .hero-desc {
+    font-size:17px; color:var(--muted); line-height:1.75; max-width:480px;
+    margin-bottom:40px;
+  }
+  .hero-actions { display:flex; gap:14px; flex-wrap:wrap; }
+  .btn-primary {
+    background:var(--ink); color:var(--cream); padding:14px 32px;
+    border-radius:4px; font-size:14px; font-weight:600; text-decoration:none;
+    display:inline-flex; align-items:center; gap:8px; transition:all .2s;
+    letter-spacing:.3px;
+  }
+  .btn-primary:hover { background:var(--amber); transform:translateY(-1px); box-shadow:0 6px 20px rgba(212,132,10,.3); }
+  .btn-outline {
+    background:transparent; color:var(--ink); padding:14px 32px;
+    border:1.5px solid var(--border); border-radius:4px; font-size:14px;
+    font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:8px;
+    transition:all .2s;
+  }
+  .btn-outline:hover { border-color:var(--ink); background:var(--warm); }
+
+  /* hero visual */
+  .hero-visual {
+    position:relative; animation:fadeUp .8s .2s ease both;
+  }
+  .ticket-stack {
+    position:relative; width:100%; max-width:440px; margin:0 auto;
+  }
+  .ticket-card {
+    background:white; border:1px solid var(--border); border-radius:8px;
+    padding:20px 24px; box-shadow:var(--shadow);
+    position:relative;
+  }
+  .ticket-card.back1 {
+    position:absolute; top:-12px; left:12px; right:-12px; bottom:12px;
+    background:var(--warm); z-index:0; border-radius:8px;
+  }
+  .ticket-card.back2 {
+    position:absolute; top:-22px; left:22px; right:-22px; bottom:22px;
+    background:var(--border); z-index:-1; border-radius:8px; opacity:.6;
+  }
+  .ticket-card.front { position:relative; z-index:2; }
+  .tc-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+  .tc-id { font-family:'DM Mono',monospace; font-size:12px; color:var(--muted); }
+  .tc-badge {
+    font-size:10px; font-weight:700; letter-spacing:.8px; padding:3px 10px;
+    border-radius:20px; text-transform:uppercase;
+  }
+  .badge-inc { background:#fce8e6; color:var(--red); }
+  .badge-prb { background:#e8f4f3; color:var(--teal); }
+  .badge-crit { background:#fff3e0; color:var(--amber); }
+  .tc-title { font-family:'Playfair Display',serif; font-size:16px; font-weight:700; margin-bottom:12px; line-height:1.3; }
+  .tc-meta { display:flex; gap:16px; flex-wrap:wrap; }
+  .tc-meta span { font-size:11px; color:var(--muted); display:flex; align-items:center; gap:4px; }
+  .tc-meta span b { color:var(--ink); }
+  .tc-divider { height:1px; background:var(--border); margin:14px 0; }
+  .tc-progress { display:flex; gap:6px; }
+  .tc-step {
+    flex:1; height:4px; border-radius:2px; background:var(--border);
+  }
+  .tc-step.done { background:var(--teal); }
+  .tc-step.active { background:var(--amber); }
+
+  /* ── STATS BAND ── */
+  .stats-band {
+    background:var(--ink); padding:56px 0;
+  }
+  .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:0; }
+  .stat-item {
+    padding:0 40px; text-align:center;
+    border-right:1px solid rgba(255,255,255,.1);
+  }
+  .stat-item:last-child { border-right:none; }
+  .stat-num {
+    font-family:'Playfair Display',serif; font-size:52px; font-weight:900;
+    color:var(--amber-lt); line-height:1; margin-bottom:8px;
+  }
+  .stat-label { font-size:13px; color:rgba(255,255,255,.5); letter-spacing:.5px; text-transform:uppercase; }
+
+  /* ── SECTION TITLES ── */
+  .section-label {
+    font-family:'DM Mono',monospace; font-size:11px; color:var(--amber);
+    letter-spacing:3px; text-transform:uppercase; margin-bottom:14px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .section-label::before { content:''; flex:0 0 24px; height:1px; background:var(--amber); }
+  .section-title {
+    font-family:'Playfair Display',serif; font-size:clamp(32px,3.5vw,50px);
+    font-weight:900; line-height:1.1; letter-spacing:-1px; color:var(--ink);
+    margin-bottom:20px;
+  }
+  .section-title em { font-style:italic; color:var(--amber); }
+  .section-desc { font-size:16px; color:var(--muted); line-height:1.75; max-width:540px; }
+
+  /* ── TICKET TYPES ── */
+  .types-section { background:var(--cream); }
+  .types-grid { display:grid; grid-template-columns:1fr 1fr; gap:2px; margin-top:64px; border:2px solid var(--ink); border-radius:12px; overflow:hidden; }
+  .type-card {
+    background:white; padding:48px 44px;
+    border-right:1px solid var(--border); position:relative; overflow:hidden;
+    transition:background .3s;
+  }
+  .type-card:hover { background:var(--card); }
+  .type-card:nth-child(odd) { border-right:2px solid var(--ink); }
+  .type-card:nth-child(n+3) { border-top:2px solid var(--ink); }
+  .type-icon {
+    width:56px; height:56px; border-radius:8px; display:flex;
+    align-items:center; justify-content:center; font-size:24px; margin-bottom:24px;
+  }
+  .type-icon.red { background:#fce8e6; }
+  .type-icon.teal { background:#e8f4f3; }
+  .type-icon.amber { background:#fff3e0; }
+  .type-icon.ink { background:#f0ede8; }
+  .type-card h3 {
+    font-family:'Playfair Display',serif; font-size:24px; font-weight:700;
+    margin-bottom:12px; line-height:1.2;
+  }
+  .type-card p { font-size:14px; color:var(--muted); line-height:1.75; margin-bottom:20px; }
+  .type-tag {
+    display:inline-block; font-family:'DM Mono',monospace; font-size:10px;
+    letter-spacing:1px; text-transform:uppercase; padding:4px 12px;
+    border-radius:20px; font-weight:500;
+  }
+  .tag-red { background:#fce8e6; color:var(--red); }
+  .tag-teal { background:#e8f4f3; color:var(--teal); }
+  .tag-amber { background:#fff3e0; color:var(--amber); }
+  .tag-ink { background:#f0ede8; color:#444; }
+  .type-corner {
+    position:absolute; bottom:24px; right:24px;
+    font-family:'DM Mono',monospace; font-size:48px; color:var(--border);
+    font-weight:500; line-height:1; pointer-events:none;
+  }
+
+  /* ── HOW IT WORKS ── */
+  .how-section { background:var(--warm); }
+  .steps-layout { display:grid; grid-template-columns:1fr 1fr; gap:80px; align-items:start; margin-top:64px; }
+  .steps-list { display:flex; flex-direction:column; gap:0; }
+  .step-item {
+    display:flex; gap:24px; padding:24px 0;
+    border-bottom:1px solid var(--border); cursor:pointer;
+    transition:all .2s; position:relative;
+  }
+  .step-item:first-child { padding-top:0; }
+  .step-item.active .step-num { background:var(--ink); color:var(--amber); }
+  .step-item.active .step-title { color:var(--ink); }
+  .step-num {
+    flex:0 0 40px; height:40px; border-radius:50%; background:var(--border);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'DM Mono',monospace; font-size:13px; font-weight:500;
+    color:var(--muted); transition:all .3s; flex-shrink:0;
+  }
+  .step-body { flex:1; }
+  .step-title { font-size:16px; font-weight:600; color:var(--muted); margin-bottom:4px; transition:color .2s; }
+  .step-desc { font-size:13px; color:var(--muted); line-height:1.6; display:none; }
+  .step-item.active .step-desc { display:block; color:var(--muted); }
+  .step-arrow { color:var(--border); font-size:18px; align-self:center; transition:color .2s; }
+  .step-item.active .step-arrow { color:var(--amber); }
+
+  .step-preview {
+    background:white; border:1px solid var(--border); border-radius:10px;
+    padding:32px; box-shadow:var(--shadow-lg); position:sticky; top:100px;
+  }
+  .preview-title { font-family:'DM Mono',monospace; font-size:10px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; margin-bottom:20px; }
+  .form-field { margin-bottom:16px; }
+  .form-label { font-size:11px; font-weight:600; color:var(--ink); letter-spacing:.3px; text-transform:uppercase; margin-bottom:6px; display:block; }
+  .form-input {
+    width:100%; padding:10px 14px; border:1.5px solid var(--border); border-radius:6px;
+    font-family:'DM Sans',sans-serif; font-size:13px; color:var(--ink);
+    background:var(--cream); outline:none; transition:border-color .2s;
+  }
+  .form-input:focus { border-color:var(--amber); }
+  .form-select {
+    width:100%; padding:10px 14px; border:1.5px solid var(--border); border-radius:6px;
+    font-family:'DM Sans',sans-serif; font-size:13px; color:var(--ink);
+    background:var(--cream); outline:none; appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23999' fill='none' stroke-width='1.5'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 14px center;
+  }
+  .form-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .form-submit {
+    width:100%; padding:13px; background:var(--ink); color:var(--cream);
+    border:none; border-radius:6px; font-size:14px; font-weight:600;
+    cursor:pointer; font-family:'DM Sans',sans-serif; transition:background .2s;
+    margin-top:6px;
+  }
+  .form-submit:hover { background:var(--amber); }
+  .priority-pills { display:flex; gap:6px; flex-wrap:wrap; }
+  .ppill {
+    padding:6px 14px; border-radius:20px; font-size:11px; font-weight:700;
+    cursor:pointer; transition:all .2s; border:1.5px solid transparent;
+    letter-spacing:.3px;
+  }
+  .ppill.crit { background:#fce8e6; color:var(--red); border-color:#f3c0bc; }
+  .ppill.high { background:#fff3e0; color:var(--amber); border-color:#f5d8a0; }
+  .ppill.med  { background:#e8f4f3; color:var(--teal); border-color:#b0d9d5; }
+  .ppill.low  { background:#f0ede8; color:#666; border-color:#d8d0c4; }
+  .ppill.selected, .ppill:hover { transform:scale(1.05); box-shadow:0 2px 8px rgba(0,0,0,.12); }
+
+  /* ── FIELDS REFERENCE ── */
+  .fields-section { background:var(--cream); }
+  .fields-cols { display:grid; grid-template-columns:1fr 1fr; gap:48px; margin-top:64px; }
+  .field-group { }
+  .field-group-title {
+    font-family:'Playfair Display',serif; font-size:22px; font-weight:700;
+    padding-bottom:12px; margin-bottom:20px;
+    border-bottom:2px solid var(--ink); display:flex; align-items:center; gap:12px;
+  }
+  .fgt-badge {
+    font-family:'DM Mono',monospace; font-size:10px; font-weight:500;
+    padding:3px 10px; border-radius:20px; letter-spacing:.5px;
+  }
+  .field-row {
+    display:flex; justify-content:space-between; align-items:flex-start;
+    padding:14px 0; border-bottom:1px solid var(--border); gap:16px;
+  }
+  .field-name { font-size:13px; font-weight:600; color:var(--ink); flex:0 0 140px; }
+  .field-desc { font-size:12px; color:var(--muted); line-height:1.5; flex:1; }
+  .field-req {
+    font-family:'DM Mono',monospace; font-size:10px; flex:0 0 60px; text-align:right;
+    padding-top:2px;
+  }
+  .req-yes { color:var(--red); }
+  .req-no  { color:var(--border); }
+
+  /* ── LIFECYCLE ── */
+  .lifecycle-section { background:var(--ink); padding:96px 0; }
+  .lifecycle-section .section-label { color:var(--amber-lt); }
+  .lifecycle-section .section-label::before { background:var(--amber-lt); }
+  .lifecycle-section .section-title { color:white; }
+  .lifecycle-section .section-title em { color:var(--amber-lt); }
+  .lifecycle-section .section-desc { color:rgba(255,255,255,.5); }
+  .lifecycle-grid { display:grid; grid-template-columns:1fr 1fr; gap:40px; margin-top:64px; }
+  .lifecycle-card {
+    border:1px solid rgba(255,255,255,.1); border-radius:10px; padding:32px;
+    position:relative; overflow:hidden;
+  }
+  .lifecycle-card::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:3px;
+  }
+  .lifecycle-card.inc::before { background:var(--red); }
+  .lifecycle-card.prb::before { background:var(--teal); }
+  .lc-heading {
+    font-family:'Playfair Display',serif; font-size:20px; font-weight:700;
+    color:white; margin-bottom:28px; display:flex; align-items:center; gap:12px;
+  }
+  .lc-badge { font-size:12px; font-weight:500; padding:3px 10px; border-radius:20px; font-family:'DM Mono',monospace; }
+  .lc-badge.inc { background:rgba(192,57,43,.2); color:#f1948a; }
+  .lc-badge.prb { background:rgba(13,115,119,.2); color:#76d7c4; }
+  .lc-steps { display:flex; flex-direction:column; gap:0; }
+  .lc-step {
+    display:flex; gap:16px; align-items:flex-start; padding:14px 0;
+    border-bottom:1px solid rgba(255,255,255,.07);
+  }
+  .lc-step:last-child { border-bottom:none; }
+  .lc-dot {
+    width:28px; height:28px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'DM Mono',monospace; font-size:11px; font-weight:500;
+  }
+  .lc-dot.inc { background:rgba(192,57,43,.2); color:#f1948a; }
+  .lc-dot.prb { background:rgba(13,115,119,.2); color:#76d7c4; }
+  .lc-step-body { flex:1; }
+  .lc-step-title { font-size:14px; font-weight:600; color:white; margin-bottom:3px; }
+  .lc-step-desc { font-size:12px; color:rgba(255,255,255,.4); line-height:1.5; }
+
+  /* ── BEST PRACTICES ── */
+  .tips-section { background:var(--cream); }
+  .tips-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:24px; margin-top:64px; }
+  .tip-card {
+    background:white; border:1px solid var(--border); border-radius:10px;
+    padding:32px; transition:all .25s; cursor:default;
+    border-top:3px solid transparent;
+  }
+  .tip-card:hover { transform:translateY(-4px); box-shadow:var(--shadow-lg); border-top-color:var(--amber); }
+  .tip-num {
+    font-family:'Playfair Display',serif; font-size:40px; font-weight:900;
+    color:var(--border); line-height:1; margin-bottom:16px;
+  }
+  .tip-title { font-size:16px; font-weight:700; color:var(--ink); margin-bottom:10px; }
+  .tip-body { font-size:13px; color:var(--muted); line-height:1.7; }
+
+  /* ── FAQ ── */
+  .faq-section { background:var(--warm); }
+  .faq-layout { display:grid; grid-template-columns:1fr 2fr; gap:80px; margin-top:64px; }
+  .faq-sticky { position:sticky; top:100px; }
+  .faq-list { display:flex; flex-direction:column; gap:0; }
+  .faq-item { border-bottom:1px solid var(--border); }
+  .faq-q {
+    width:100%; background:none; border:none; padding:20px 0;
+    text-align:left; font-family:'DM Sans',sans-serif; font-size:15px;
+    font-weight:600; color:var(--ink); cursor:pointer;
+    display:flex; justify-content:space-between; align-items:center; gap:16px;
+  }
+  .faq-q:hover { color:var(--amber); }
+  .faq-icon { font-size:20px; color:var(--border); transition:transform .3s, color .3s; flex-shrink:0; }
+  .faq-item.open .faq-icon { transform:rotate(45deg); color:var(--amber); }
+  .faq-a { display:none; padding-bottom:20px; font-size:14px; color:var(--muted); line-height:1.75; }
+  .faq-item.open .faq-a { display:block; }
+
+  /* ── CTA ── */
+  .cta-section {
+    background:var(--ink); padding:120px 0; text-align:center;
+    position:relative; overflow:hidden;
+  }
+  .cta-section::before {
+    content:''; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:800px; height:800px; border-radius:50%;
+    background:radial-gradient(circle,rgba(212,132,10,.15) 0%,transparent 65%);
+    pointer-events:none;
+  }
+  .cta-section h2 {
+    font-family:'Playfair Display',serif; font-size:clamp(36px,4vw,60px);
+    font-weight:900; color:white; letter-spacing:-1px; margin-bottom:20px;
+    position:relative;
+  }
+  .cta-section h2 em { font-style:italic; color:var(--amber-lt); }
+  .cta-section p { font-size:17px; color:rgba(255,255,255,.5); max-width:480px; margin:0 auto 40px; }
+  .cta-actions { display:flex; justify-content:center; gap:14px; flex-wrap:wrap; }
+  .btn-primary-light {
+    background:var(--amber); color:var(--ink); padding:16px 36px;
+    border-radius:4px; font-size:15px; font-weight:700; text-decoration:none;
+    display:inline-flex; align-items:center; gap:8px;
+    transition:all .2s; letter-spacing:.3px;
+  }
+  .btn-primary-light:hover { background:var(--amber-lt); transform:translateY(-2px); }
+  .btn-ghost {
+    background:transparent; color:rgba(255,255,255,.7); padding:16px 36px;
+    border:1.5px solid rgba(255,255,255,.2); border-radius:4px; font-size:15px;
+    font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:8px;
+    transition:all .2s;
+  }
+  .btn-ghost:hover { border-color:rgba(255,255,255,.5); color:white; }
+
+  /* ── FOOTER ── */
+  footer {
+    background:#060809; padding:48px 0; border-top:1px solid rgba(255,255,255,.06);
+  }
+  .footer-inner {
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .footer-logo {
+    font-family:'Playfair Display',serif; font-size:18px; font-weight:900;
+    color:rgba(255,255,255,.8);
+  }
+  .footer-links { display:flex; gap:28px; }
+  .footer-links a { color:rgba(255,255,255,.3); font-size:12px; text-decoration:none; letter-spacing:.3px; transition:color .2s; }
+  .footer-links a:hover { color:var(--amber-lt); }
+  .footer-copy { font-size:12px; color:rgba(255,255,255,.2); font-family:'DM Mono',monospace; }
+
+  /* ── MODAL DEMO ── */
+  .modal-overlay {
+    display:none; position:fixed; inset:0; background:rgba(14,14,14,.75);
+    backdrop-filter:blur(8px); z-index:2000; align-items:center; justify-content:center; padding:24px;
+  }
+  .modal-overlay.open { display:flex; }
+  .modal-box {
+    background:var(--cream); border-radius:12px; padding:40px;
+    width:100%; max-width:560px; max-height:90vh; overflow-y:auto;
+    box-shadow:var(--shadow-lg); animation:fadeUp .3s ease;
+    border:1px solid var(--border);
+  }
+  .modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:28px; }
+  .modal-title { font-family:'Playfair Display',serif; font-size:24px; font-weight:700; }
+  .modal-close {
+    background:none; border:1px solid var(--border); color:var(--muted);
+    width:36px; height:36px; border-radius:6px; cursor:pointer; font-size:18px;
+    display:flex; align-items:center; justify-content:center; transition:all .2s;
+  }
+  .modal-close:hover { background:var(--ink); color:var(--cream); border-color:var(--ink); }
+  .modal-tabs { display:flex; gap:0; margin-bottom:28px; border:1.5px solid var(--border); border-radius:8px; overflow:hidden; }
+  .modal-tab {
+    flex:1; padding:10px; background:white; border:none; font-family:'DM Sans',sans-serif;
+    font-size:13px; font-weight:600; cursor:pointer; transition:all .2s; color:var(--muted);
+  }
+  .modal-tab.active { background:var(--ink); color:var(--cream); }
+
+  /* ── NOTIFICATION TOAST ── */
+  .toast {
+    position:fixed; bottom:32px; right:32px; background:var(--ink); color:white;
+    padding:14px 22px; border-radius:8px; font-size:13px; font-weight:500;
+    border-left:4px solid var(--amber); z-index:3000; transform:translateY(80px);
+    opacity:0; transition:all .4s cubic-bezier(.34,1.56,.64,1);
+    box-shadow:0 8px 32px rgba(0,0,0,.3); max-width:320px;
+  }
+  .toast.show { transform:translateY(0); opacity:1; }
+  .toast-title { font-weight:700; margin-bottom:2px; }
+  .toast-body { font-size:12px; color:rgba(255,255,255,.6); font-family:'DM Mono',monospace; }
+
+  /* responsive */
+  @media(max-width:900px){
+    .hero { grid-template-columns:1fr; padding-top:40px; }
+    .hero-visual { display:none; }
+    .stats-grid { grid-template-columns:1fr 1fr; gap:32px; }
+    .stat-item { border-right:none; border-bottom:1px solid rgba(255,255,255,.1); padding:20px; }
+    .types-grid,.steps-layout,.fields-cols,.lifecycle-grid,.tips-grid,.faq-layout { grid-template-columns:1fr; }
+    .type-card:nth-child(odd) { border-right:none; }
+    .type-card:nth-child(n+2) { border-top:2px solid var(--ink); }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <div class="toast-title" id="toastTitle">Ticket Created!</div>
+  <div class="toast-body" id="toastBody">INC-2847 has been logged.</div>
+</div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <a class="nav-logo" href="#">TicketLog <span class="dot"></span></a>
+    <ul class="nav-links">
+      <li><a href="#types">Ticket Types</a></li>
+      <li><a href="#how">How It Works</a></li>
+      <li><a href="#lifecycle">Lifecycle</a></li>
+      <li><a href="#best-practices">Best Practices</a></li>
+      <li><a href="#faq">FAQ</a></li>
+    </ul>
+    <button class="nav-cta" onclick="openModal()">Log a Ticket →</button>
+  </div>
+</nav>
+
+<!-- TICKER -->
+<div class="ticker-wrap">
+  <div class="ticker-inner" id="ticker">
+    <span class="ticker-item">Incident Management <span class="ticker-sep">✦</span></span>
+    <span class="ticker-item">Problem Logging <span class="ticker-sep">✦</span></span>
+    <span class="ticker-item">Root Cause Analysis <span class="ticker-sep">✦</span></span>
+    <span class="ticker-item">ITIL Best Practices <span class="ticker-sep">✦</span></span>
+    <span class="ticker-item">SLA Compliance <span class="ticker-sep">✦</span></span>
+    <span class="ticker-item">ServiceDesk Plus <span class="ticker-sep">✦</span></span>
+    <span class="ticker-item">Proactive Management <span class="ticker-sep">✦</span></span>
+    <span class="ticker-item">Incident Management <span class="ticker-sep">✦</span></span>
+    <span class="ticker-item">Problem Logging <span class="ticker-sep">✦</span></span>
+    <span class="ticker-item">Root Cause Analysis <span class="ticker-sep">✦</span></span>
+    <span class="ticker-item">ITIL Best Practices <span class="ticker-sep">✦</span></span>
+    <span class="ticker-item">SLA Compliance <span class="ticker-sep">✦</span></span>
+    <span class="ticker-item">ServiceDesk Plus <span class="ticker-sep">✦</span></span>
+    <span class="ticker-item">Proactive Management <span class="ticker-sep">✦</span></span>
+  </div>
+</div>
+
+<!-- HERO -->
+<section style="padding-top:0;padding-bottom:0;">
+  <div class="container">
+    <div class="hero">
+      <div style="animation:fadeUp .7s ease both;">
+        <div class="hero-eyebrow">ITSM Ticket Logging Guide</div>
+        <h1>Log it right.<br/><em>Resolve it fast.</em></h1>
+        <p class="hero-desc">A complete reference for logging, tracking, and resolving Incident and Problem tickets — from first report to permanent fix.</p>
+        <div class="hero-actions">
+          <a href="#how" class="btn-primary">Get Started →</a>
+          <button class="btn-outline" onclick="openModal()">Log a Ticket</button>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <div class="ticket-stack">
+          <div class="ticket-card back2"></div>
+          <div class="ticket-card back1"></div>
+          <div class="ticket-card front">
+            <div class="tc-header">
+              <span class="tc-id">INC-2847</span>
+              <span class="tc-badge badge-crit">🔴 Critical</span>
+            </div>
+            <div class="tc-title">VPN authentication failures during peak hours</div>
+            <div class="tc-meta">
+              <span>📁 <b>Category:</b> Network</span>
+              <span>👤 <b>Owner:</b> A.Torres</span>
+              <span>📅 <b>Opened:</b> 07 Mar 2026</span>
+              <span>⏱ <b>SLA:</b> 4h remaining</span>
+            </div>
+            <div class="tc-divider"></div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:8px;font-family:'DM Mono',monospace;letter-spacing:.5px;text-transform:uppercase;">Progress</div>
+            <div class="tc-progress">
+              <div class="tc-step done"></div>
+              <div class="tc-step done"></div>
+              <div class="tc-step active"></div>
+              <div class="tc-step"></div>
+              <div class="tc-step"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<div class="stats-band">
+  <div class="container">
+    <div class="stats-grid">
+      <div class="stat-item reveal"><div class="stat-num">93<span style="font-size:32px">%</span></div><div class="stat-label">Faster resolution with proper logging</div></div>
+      <div class="stat-item reveal"><div class="stat-num">4×</div><div class="stat-label">Fewer recurring incidents with Problem Mgmt</div></div>
+      <div class="stat-item reveal"><div class="stat-num">68<span style="font-size:32px">%</span></div><div class="stat-label">Of incidents link to known problems</div></div>
+      <div class="stat-item reveal"><div class="stat-num">2.1×</div><div class="stat-label">SLA compliance improvement</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- TICKET TYPES -->
+<section class="types-section" id="types">
+  <div class="container">
+    <div class="section-label">Ticket Types</div>
+    <h2 class="section-title">Two tickets.<br/><em>Different purposes.</em></h2>
+    <p class="section-desc">Understanding the difference between an Incident and a Problem ticket is the foundation of effective ITSM.</p>
+    <div class="types-grid reveal">
+      <div class="type-card">
+        <div class="type-icon red">🚨</div>
+        <h3>Incident Ticket</h3>
+        <p>An unplanned disruption or degradation of an IT service. The goal is to restore normal service operation as quickly as possible and minimise the impact on the business — not necessarily to find the root cause.</p>
+        <span class="type-tag tag-red">Reactive · Service Restore</span>
+        <div class="type-corner">INC</div>
+      </div>
+      <div class="type-card">
+        <div class="type-icon teal">🔍</div>
+        <h3>Problem Ticket</h3>
+        <p>The underlying cause of one or more incidents. Problem Management proactively identifies the root cause, documents a known error, and eliminates the issue permanently to prevent future recurrences.</p>
+        <span class="type-tag tag-teal">Proactive · Root Cause</span>
+        <div class="type-corner">PRB</div>
+      </div>
+      <div class="type-card">
+        <div class="type-icon amber">⚡</div>
+        <h3>Major Incident</h3>
+        <p>A high-impact incident that significantly disrupts critical business services. Requires a dedicated bridge call, major incident manager, and post-incident review. Automatically triggers a linked Problem record.</p>
+        <span class="type-tag tag-amber">Critical · Escalated</span>
+        <div class="type-corner">MJR</div>
+      </div>
+      <div class="type-card">
+        <div class="type-icon ink">📋</div>
+        <h3>Known Error</h3>
+        <p>A problem that has been analysed and has either a root cause or a documented workaround. Known Errors sit in the Known Error Database (KEDB) and help technicians resolve incidents faster while a permanent fix is in progress.</p>
+        <span class="type-tag tag-ink">Documented · KEDB</span>
+        <div class="type-corner">KE</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how-section" id="how">
+  <div class="container">
+    <div class="section-label">How It Works</div>
+    <h2 class="section-title">Logging a ticket<br/><em>step by step.</em></h2>
+    <p class="section-desc">Follow these steps to ensure every ticket is complete, actionable, and trackable from open to close.</p>
+    <div class="steps-layout">
+      <div class="steps-list" id="stepsList">
+        <!-- Steps injected by JS -->
+      </div>
+      <div class="step-preview" id="stepPreview">
+        <div class="preview-title" id="previewTitle">Step 1 — Identify &amp; Classify</div>
+        <div id="previewContent"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FIELD REFERENCE -->
+<section class="fields-section" id="fields">
+  <div class="container">
+    <div class="section-label">Field Reference</div>
+    <h2 class="section-title">What to fill in<br/><em>and why.</em></h2>
+    <p class="section-desc">Every field on an Incident or Problem form has a purpose. Here's a quick-reference guide.</p>
+    <div class="fields-cols reveal">
+      <div class="field-group">
+        <div class="field-group-title">
+          Incident Fields
+          <span class="fgt-badge tag-red">INC</span>
+        </div>
+        <div id="incFields"></div>
+      </div>
+      <div class="field-group">
+        <div class="field-group-title">
+          Problem Fields
+          <span class="fgt-badge tag-teal">PRB</span>
+        </div>
+        <div id="prbFields"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LIFECYCLE -->
+<section class="lifecycle-section" id="lifecycle">
+  <div class="container">
+    <div class="section-label">Lifecycle</div>
+    <h2 class="section-title">From open<br/>to <em>permanently resolved.</em></h2>
+    <p class="section-desc">Understand every status transition — and what needs to happen at each stage — for both ticket types.</p>
+    <div class="lifecycle-grid reveal">
+      <div class="lifecycle-card inc">
+        <div class="lc-heading">
+          <span>Incident Lifecycle</span>
+          <span class="lc-badge inc">INC</span>
+        </div>
+        <div class="lc-steps" id="incLifecycle"></div>
+      </div>
+      <div class="lifecycle-card prb">
+        <div class="lc-heading">
+          <span>Problem Lifecycle</span>
+          <span class="lc-badge prb">PRB</span>
+        </div>
+        <div class="lc-steps" id="prbLifecycle"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BEST PRACTICES -->
+<section class="tips-section" id="best-practices">
+  <div class="container">
+    <div class="section-label">Best Practices</div>
+    <h2 class="section-title">10 rules for<br/><em>great ticket logging.</em></h2>
+    <p class="section-desc">Good tickets save hours of investigation. Here's what separates a great log from a useless one.</p>
+    <div class="tips-grid" id="tipsGrid"></div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="faq-section" id="faq">
+  <div class="container">
+    <div class="faq-layout">
+      <div class="faq-sticky reveal">
+        <div class="section-label">FAQ</div>
+        <h2 class="section-title" style="font-size:36px;">Common<br/><em>questions.</em></h2>
+        <p class="section-desc" style="font-size:14px;margin-top:16px;">Everything you need to know about logging and managing tickets effectively.</p>
+      </div>
+      <div class="faq-list reveal" id="faqList"></div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <div class="container">
+    <h2>Ready to log<br/><em>your first ticket?</em></h2>
+    <p>Start resolving faster, tracking smarter, and eliminating recurring problems for good.</p>
+    <div class="cta-actions">
+      <button class="btn-primary-light" onclick="openModal()">Log a Ticket Now →</button>
+      <a href="#types" class="btn-ghost">Learn More</a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="container">
+    <div class="footer-inner">
+      <div class="footer-logo">TicketLog</div>
+      <div class="footer-links">
+        <a href="#types">Types</a>
+        <a href="#how">How It Works</a>
+        <a href="#lifecycle">Lifecycle</a>
+        <a href="#faq">FAQ</a>
+      </div>
+      <div class="footer-copy">© 2026 TicketLog · ITIL v4</div>
+    </div>
+  </div>
+</footer>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalOutside(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">Log a Ticket</div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-tabs">
+      <button class="modal-tab active" onclick="switchTab('incident',this)">🚨 Incident</button>
+      <button class="modal-tab" onclick="switchTab('problem',this)">🔍 Problem</button>
+    </div>
+    <div id="modalForm"></div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════
+   DATA
+═══════════════════════════════════════════════ */
+const STEPS = [
+  {
+    num:"01", title:"Identify & Classify",
+    desc:"Determine whether the event is an Incident (service disruption) or a Problem (underlying root cause). Set the correct ticket type, category, and service before anything else.",
+    preview: `
+      <div class="form-field"><label class="form-label">Ticket Type</label>
+        <div style="display:flex;gap:8px;">
+          <div style="flex:1;padding:12px;background:var(--cream);border:1.5px solid var(--red);border-radius:6px;text-align:center;font-size:13px;font-weight:600;cursor:pointer;color:var(--red);">🚨 Incident</div>
+          <div style="flex:1;padding:12px;background:white;border:1.5px solid var(--border);border-radius:6px;text-align:center;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted);">🔍 Problem</div>
+        </div>
+      </div>
+      <div class="form-grid2">
+        <div class="form-field"><label class="form-label">Category</label><select class="form-select"><option>Network</option><option>Application</option><option>Hardware</option><option>Email</option></select></div>
+        <div class="form-field"><label class="form-label">Service</label><select class="form-select"><option>VPN Gateway</option><option>SAP ERP</option><option>Microsoft 365</option></select></div>
+      </div>`
+  },
+  {
+    num:"02", title:"Set Priority & Impact",
+    desc:"Assess the business impact and urgency. Priority determines SLA response time. Be accurate — over-escalating wastes resources; under-escalating breaches SLAs.",
+    preview:`
+      <div class="form-field"><label class="form-label">Priority</label>
+        <div class="priority-pills">
+          <div class="ppill crit selected">🔴 Critical</div>
+          <div class="ppill high">🟠 High</div>
+          <div class="ppill med">🟡 Medium</div>
+          <div class="ppill low">🟢 Low</div>
+        </div>
+      </div>
+      <div class="form-field" style="margin-top:14px;"><label class="form-label">Impact</label><select class="form-select"><option>Enterprise-wide</option><option>Department</option><option>Multiple Users</option><option>Single User</option></select></div>
+      <div class="form-field"><label class="form-label">Urgency</label><select class="form-select"><option>Immediate</option><option>High</option><option>Normal</option><option>Low</option></select></div>`
+  },
+  {
+    num:"03", title:"Write a Clear Title",
+    desc:"The title must describe WHAT is broken and WHERE, not how the user feels about it. Avoid vague titles like 'It's not working'. Be specific and searchable.",
+    preview:`
+      <div class="form-field"><label class="form-label">Title</label><input class="form-input" type="text" value="VPN authentication failures — Building A peak hours" /></div>
+      <div style="background:#fff3e0;border:1px solid #f5d8a0;border-radius:6px;padding:12px 14px;margin-top:4px;">
+        <div style="font-size:11px;font-weight:700;color:var(--amber);margin-bottom:4px;">✦ GOOD TITLE FORMULA</div>
+        <div style="font-size:12px;color:#7a5a10;line-height:1.6;">[Service] + [Symptom] + [Scope/Location]<br/>e.g. "Outlook calendar not syncing — Finance dept"</div>
+      </div>`
+  },
+  {
+    num:"04", title:"Describe the Issue",
+    desc:"Include: what the user was doing, when it started, error messages seen, steps to reproduce, and how many users are affected. More detail = faster resolution.",
+    preview:`
+      <div class="form-field"><label class="form-label">Description</label>
+        <textarea class="form-input" rows="5" style="resize:vertical;">Users on the 3rd floor (Finance dept) are unable to authenticate via VPN between 08:00–10:00 daily since 04 Mar 2026. Error: "Authentication timeout (Error 800)". Affects approx. 23 users. No recent changes to client config.</textarea>
+      </div>
+      <div class="form-field"><label class="form-label">Steps to Reproduce</label>
+        <textarea class="form-input" rows="3" style="resize:vertical;">1. Launch Cisco AnyConnect\n2. Enter credentials\n3. Error appears after 30s timeout</textarea>
+      </div>`
+  },
+  {
+    num:"05", title:"Assign & Notify",
+    desc:"Route the ticket to the correct team or individual. Set watchers for stakeholders. Ensure SLA timers are running and the requester gets an acknowledgement.",
+    preview:`
+      <div class="form-grid2">
+        <div class="form-field"><label class="form-label">Assigned To</label><input class="form-input" type="text" value="A. Torres (Network Team)" /></div>
+        <div class="form-field"><label class="form-label">Team</label><select class="form-select"><option>Network Ops</option><option>App Support</option><option>Infrastructure</option></select></div>
+      </div>
+      <div class="form-field"><label class="form-label">Notify (CC)</label><input class="form-input" type="text" placeholder="manager@company.com, user@company.com" /></div>
+      <div class="form-field"><label class="form-label">SLA Policy</label><select class="form-select"><option>Critical — Respond 1h / Resolve 4h</option><option>High — Respond 2h / Resolve 8h</option></select></div>`
+  },
+  {
+    num:"06", title:"Update & Close",
+    desc:"Document every action taken in the work notes. When resolved, record the resolution detail, root cause (if known), and link to any Problem records. Get user sign-off before closing.",
+    preview:`
+      <div class="form-field"><label class="form-label">Resolution Notes</label>
+        <textarea class="form-input" rows="4" style="resize:vertical;">Restarted RADIUS authentication server at 10:42. Cleared stale session pool. VPN auth restored for all 23 users by 11:05. Root cause: session pool exhaustion. PRB-1047 raised for permanent fix.</textarea>
+      </div>
+      <div class="form-field"><label class="form-label">Status</label>
+        <select class="form-select"><option>Resolved</option><option>Closed</option></select>
+      </div>
+      <div class="form-field"><label class="form-label">Link Problem Record</label>
+        <input class="form-input" type="text" value="PRB-1047" />
+      </div>`
+  }
+];
+
+const INC_FIELDS = [
+  {name:"Title",         desc:"One-line description: service + symptom + scope.",        req:true},
+  {name:"Category",      desc:"IT domain: Network, App, Hardware, Security, etc.",       req:true},
+  {name:"Service",       desc:"Specific service affected (e.g. VPN Gateway, SAP ERP).",  req:true},
+  {name:"Priority",      desc:"Critical / High / Medium / Low based on impact + urgency.",req:true},
+  {name:"Description",   desc:"Full detail: what, when, who, error messages, steps.",     req:true},
+  {name:"Affected Users",desc:"Number and names/teams affected by the disruption.",       req:true},
+  {name:"Assignee",      desc:"The technician or group responsible for resolution.",      req:true},
+  {name:"SLA Policy",    desc:"Drives response and resolution time targets.",             req:true},
+  {name:"Attachments",   desc:"Screenshots, logs, or error dumps to aid diagnosis.",      req:false},
+  {name:"Workaround",    desc:"Any interim fix applied to restore service quickly.",      req:false},
+  {name:"Problem Link",  desc:"Link to a PRB if a related problem record exists.",        req:false},
+  {name:"Resolution",    desc:"Full detail of how and when the incident was resolved.",   req:false},
+];
+
+const PRB_FIELDS = [
+  {name:"Title",         desc:"What underlying issue is being investigated.",             req:true},
+  {name:"Service",       desc:"Service or component with recurring failures.",            req:true},
+  {name:"Priority",      desc:"Based on business impact of the underlying issue.",        req:true},
+  {name:"Root Cause",    desc:"Technical explanation once investigation is complete.",    req:true},
+  {name:"Impact",        desc:"Scope of damage if the problem remains unresolved.",       req:true},
+  {name:"Linked Incidents",desc:"All INC tickets that stem from this problem.",          req:true},
+  {name:"Owner",         desc:"Senior technician responsible for the investigation.",     req:true},
+  {name:"Workaround",    desc:"Documented interim fix to reduce ongoing impact.",         req:false},
+  {name:"KEDB Entry",    desc:"Whether this is recorded in the Known Error Database.",    req:false},
+  {name:"Fix Plan",      desc:"Permanent resolution steps and expected delivery date.",   req:false},
+  {name:"Due Date",      desc:"Target date for permanent resolution.",                   req:false},
+  {name:"Post-PIR Notes",desc:"Post-Implementation Review notes after fix deployment.",  req:false},
+];
+
+const INC_LIFECYCLE = [
+  {n:"1", t:"New",         d:"Ticket raised, not yet reviewed by a technician."},
+  {n:"2", t:"Assigned",    d:"Routed to the appropriate team; SLA timer starts."},
+  {n:"3", t:"In Progress", d:"Technician is actively investigating and working a fix."},
+  {n:"4", t:"Pending",     d:"Awaiting information from the user or a third party."},
+  {n:"5", t:"Resolved",    d:"Service restored; resolution documented; user notified."},
+  {n:"6", t:"Closed",      d:"User confirms resolution. Ticket locked. Data retained."},
+];
+
+const PRB_LIFECYCLE = [
+  {n:"1", t:"Logged",         d:"Problem identified from trend analysis or major incident."},
+  {n:"2", t:"Categorised",    d:"Service, priority, and impact assessed and recorded."},
+  {n:"3", t:"Under Investigation", d:"Root cause analysis underway; KEDB checked."},
+  {n:"4", t:"Known Error",    d:"Root cause found; workaround documented in KEDB."},
+  {n:"5", t:"Fix In Progress",d:"Permanent resolution being developed and tested."},
+  {n:"6", t:"Resolved",       d:"Fix deployed; all linked incidents closed. PIR scheduled."},
+];
+
+const TIPS = [
+  {t:"One ticket, one issue",   b:"Never combine multiple issues in a single ticket. It obscures priority, splits ownership, and makes metrics meaningless."},
+  {t:"Use specific titles",     b:"A good title answers: what broke, where, and for whom. 'Email not working' helps nobody. 'Outlook sync failing — Finance Dept' does."},
+  {t:"Log immediately",         b:"Time-stamps matter for SLA compliance and for understanding incident timelines. Don't batch-log at end of shift."},
+  {t:"Describe impact, not feelings", b:"'This is urgent!!!' tells a technician nothing. '47 users cannot access SAP, blocking month-end close' tells them everything."},
+  {t:"Attach evidence",         b:"Screenshots, error logs, and network captures cut investigation time dramatically. Attach them at creation, not after the fact."},
+  {t:"Update in real time",     b:"Work notes should tell the story of how the ticket was resolved. Future you — or the next technician — will thank present you."},
+  {t:"Set accurate priority",   b:"Priority inflation (everything is Critical) leads to alert fatigue. Use the defined impact/urgency matrix, not gut feel."},
+  {t:"Link incidents to problems", b:"If you fix the same incident three times, raise a Problem. Linking incidents to the PRB tracks recurrence and drives root cause work."},
+  {t:"Get user sign-off",       b:"Never close an incident without user confirmation. What looks resolved from your desk may still be broken for the requester."},
+  {t:"Review and improve",      b:"Run monthly ticket reviews. Tickets with poor data, wrong priority, or no resolution notes are training opportunities."},
+];
+
+const FAQS = [
+  {q:"What's the difference between an Incident and a Problem?",
+   a:"An Incident is a disruption that needs to be fixed quickly to restore service. A Problem is the underlying cause of that disruption. You resolve incidents fast; you investigate problems thoroughly to stop them recurring."},
+  {q:"When should I raise a Problem instead of an Incident?",
+   a:"Raise a Problem when: (1) the same Incident keeps recurring, (2) you've just resolved a Major Incident, or (3) trend analysis shows multiple incidents sharing the same root cause. Problems are also raised proactively, even before an incident occurs."},
+  {q:"Can an Incident become a Problem?",
+   a:"Not directly — they are separate records. However, an Incident can trigger the creation of a Problem record. The Incident is closed once service is restored; the Problem record continues until the root cause is permanently eliminated."},
+  {q:"What is a Known Error?",
+   a:"A Known Error is a Problem where the root cause has been identified and a workaround (or fix) has been documented. Known Errors live in the Known Error Database (KEDB) so technicians can resolve related Incidents faster without having to re-diagnose."},
+  {q:"How is Priority different from Urgency and Impact?",
+   a:"Impact measures how many users/processes are affected. Urgency measures how quickly a fix is needed for business continuity. Priority is calculated from Impact × Urgency and determines the SLA response and resolution targets."},
+  {q:"Who can raise a Problem ticket?",
+   a:"In most ITIL-aligned organisations, Problem records are raised by Service Desk managers, senior technicians, or dedicated Problem Managers — not end users. They are triggered by incident trends, major incident reviews, or proactive monitoring."},
+  {q:"What is a Post-Incident Review (PIR)?",
+   a:"A PIR (or Post-Mortem) is a structured review held after a Major Incident is resolved. It examines what happened, why, what was done, and what permanent changes are needed to prevent recurrence. Outputs feed directly into Problem records."},
+  {q:"How long should a ticket stay open?",
+   a:"Incidents should be resolved within the SLA window defined by their priority. Problem records have no fixed SLA but should have a target resolution date. Tickets that remain open beyond their target must be escalated and reviewed."},
+];
+
+/* ═══════════════════════════════════════════════
+   RENDER FUNCTIONS
+═══════════════════════════════════════════════ */
+
+// Steps
+let activeStep = 0;
+function renderSteps() {
+  const list = document.getElementById("stepsList");
+  list.innerHTML = STEPS.map((s,i) => `
+    <div class="step-item ${i===activeStep?'active':''}" onclick="selectStep(${i})">
+      <div class="step-num">${s.num}</div>
+      <div class="step-body">
+        <div class="step-title">${s.title}</div>
+        <div class="step-desc">${s.desc}</div>
+      </div>
+      <div class="step-arrow">›</div>
+    </div>`).join("");
+  document.getElementById("previewTitle").textContent = `Step ${STEPS[activeStep].num} — ${STEPS[activeStep].title}`;
+  document.getElementById("previewContent").innerHTML = STEPS[activeStep].preview;
+}
+function selectStep(i) { activeStep = i; renderSteps(); }
+
+// Fields
+function renderFields() {
+  const renderGroup = (fields, el) => {
+    el.innerHTML = fields.map(f => `
+      <div class="field-row">
+        <div class="field-name">${f.name}</div>
+        <div class="field-desc">${f.desc}</div>
+        <div class="field-req ${f.req?'req-yes':'req-no'}">${f.req?'Required':'Optional'}</div>
+      </div>`).join("");
+  };
+  renderGroup(INC_FIELDS, document.getElementById("incFields"));
+  renderGroup(PRB_FIELDS, document.getElementById("prbFields"));
+}
+
+// Lifecycle
+function renderLifecycle() {
+  const renderLC = (steps, el, cls) => {
+    el.innerHTML = steps.map(s => `
+      <div class="lc-step">
+        <div class="lc-dot ${cls}">${s.n}</div>
+        <div class="lc-step-body">
+          <div class="lc-step-title">${s.t}</div>
+          <div class="lc-step-desc">${s.d}</div>
+        </div>
+      </div>`).join("");
+  };
+  renderLC(INC_LIFECYCLE, document.getElementById("incLifecycle"), "inc");
+  renderLC(PRB_LIFECYCLE, document.getElementById("prbLifecycle"), "prb");
+}
+
+// Tips
+function renderTips() {
+  document.getElementById("tipsGrid").innerHTML = TIPS.map((t,i) => `
+    <div class="tip-card reveal">
+      <div class="tip-num">${String(i+1).padStart(2,"0")}</div>
+      <div class="tip-title">${t.t}</div>
+      <div class="tip-body">${t.b}</div>
+    </div>`).join("");
+}
+
+// FAQ
+function renderFAQ() {
+  document.getElementById("faqList").innerHTML = FAQS.map(f => `
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFAQ(this)">${f.q}<span class="faq-icon">+</span></button>
+      <div class="faq-a">${f.a}</div>
+    </div>`).join("");
+}
+function toggleFAQ(btn) {
+  const item = btn.parentElement;
+  const wasOpen = item.classList.contains("open");
+  document.querySelectorAll(".faq-item.open").forEach(el => el.classList.remove("open"));
+  if(!wasOpen) item.classList.add("open");
+}
+
+/* ═══════════════════════════════════════════════
+   MODAL
+═══════════════════════════════════════════════ */
+let currentTab = "incident";
+let incCounter = 2847;
+let prbCounter = 1047;
+
+const INC_FORM = `
+  <div class="form-field"><label class="form-label">Title *</label><input id="mf-title" class="form-input" type="text" placeholder="e.g. VPN auth failures — Building A" /></div>
+  <div class="form-grid2">
+    <div class="form-field"><label class="form-label">Category *</label><select class="form-select"><option value="">Select…</option><option>Network</option><option>Application</option><option>Hardware</option><option>Email</option><option>Security</option><option>Database</option></select></div>
+    <div class="form-field"><label class="form-label">Service *</label><select class="form-select"><option value="">Select…</option><option>VPN Gateway</option><option>SAP ERP</option><option>Microsoft 365</option><option>Print Services</option><option>LAN / WiFi</option></select></div>
+  </div>
+  <div class="form-field"><label class="form-label">Priority *</label>
+    <div class="priority-pills" id="mpills">
+      <div class="ppill crit" onclick="selectPill(this)">🔴 Critical</div>
+      <div class="ppill high" onclick="selectPill(this)">🟠 High</div>
+      <div class="ppill med selected" onclick="selectPill(this)">🟡 Medium</div>
+      <div class="ppill low" onclick="selectPill(this)">🟢 Low</div>
+    </div>
+  </div>
+  <div class="form-field"><label class="form-label">Description *</label><textarea id="mf-desc" class="form-input" rows="4" placeholder="What happened, when, who is affected, error messages…"></textarea></div>
+  <div class="form-grid2">
+    <div class="form-field"><label class="form-label">Affected Users</label><input class="form-input" type="number" placeholder="e.g. 23" /></div>
+    <div class="form-field"><label class="form-label">Assignee</label><input class="form-input" type="text" placeholder="e.g. A. Torres" /></div>
+  </div>
+  <button class="form-submit" onclick="submitTicket('incident')">Log Incident →</button>`;
+
+const PRB_FORM = `
+  <div class="form-field"><label class="form-label">Title *</label><input id="mf-ptitle" class="form-input" type="text" placeholder="e.g. Recurring VPN auth failures — root cause investigation" /></div>
+  <div class="form-grid2">
+    <div class="form-field"><label class="form-label">Service *</label><select class="form-select"><option value="">Select…</option><option>VPN Gateway</option><option>SAP ERP</option><option>Microsoft 365</option><option>Print Services</option><option>LAN / WiFi</option></select></div>
+    <div class="form-field"><label class="form-label">Priority *</label><select class="form-select"><option>Critical</option><option>High</option><option selected>Medium</option><option>Low</option></select></div>
+  </div>
+  <div class="form-field"><label class="form-label">Impact Statement *</label><textarea class="form-input" rows="3" placeholder="Business impact if root cause is not resolved…"></textarea></div>
+  <div class="form-field"><label class="form-label">Root Cause (if known)</label><textarea class="form-input" rows="3" placeholder="Current hypothesis or confirmed root cause…"></textarea></div>
+  <div class="form-field"><label class="form-label">Workaround</label><textarea class="form-input" rows="2" placeholder="Interim fix to reduce impact while investigating…"></textarea></div>
+  <div class="form-grid2">
+    <div class="form-field"><label class="form-label">Owner</label><input class="form-input" type="text" placeholder="e.g. M. Park" /></div>
+    <div class="form-field"><label class="form-label">Target Resolution</label><input class="form-input" type="date" /></div>
+  </div>
+  <div class="form-field"><label class="form-label">Linked Incidents</label><input class="form-input" type="text" placeholder="e.g. INC-2201, INC-2208, INC-2219" /></div>
+  <button class="form-submit" onclick="submitTicket('problem')">Log Problem Record →</button>`;
+
+function openModal() {
+  document.getElementById("modalOverlay").classList.add("open");
+  document.getElementById("modalForm").innerHTML = INC_FORM;
+}
+function closeModal() { document.getElementById("modalOverlay").classList.remove("open"); }
+function closeModalOutside(e) { if(e.target===document.getElementById("modalOverlay")) closeModal(); }
+function switchTab(tab, btn) {
+  currentTab = tab;
+  document.querySelectorAll(".modal-tab").forEach(t=>t.classList.remove("active"));
+  btn.classList.add("active");
+  document.getElementById("modalForm").innerHTML = tab==="incident" ? INC_FORM : PRB_FORM;
+}
+function selectPill(el) {
+  document.querySelectorAll("#mpills .ppill").forEach(p=>p.classList.remove("selected"));
+  el.classList.add("selected");
+}
+function submitTicket(type) {
+  const isInc = type==="incident";
+  const titleEl = document.getElementById(isInc?"mf-title":"mf-ptitle");
+  if(!titleEl || !titleEl.value.trim()) { titleEl && titleEl.focus(); return; }
+  const id = isInc ? `INC-${++incCounter}` : `PRB-${++prbCounter}`;
+  closeModal();
+  showToast(`${isInc?"Incident":"Problem"} Logged — ${id}`, isInc ? "Assigned and SLA timer started." : "Root cause investigation opened.");
+}
+
+/* ═══════════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════════ */
+function showToast(title, body) {
+  const t = document.getElementById("toast");
+  document.getElementById("toastTitle").textContent = title;
+  document.getElementById("toastBody").textContent = body;
+  t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 4000);
+}
+
+/* ═══════════════════════════════════════════════
+   SCROLL REVEAL
+═══════════════════════════════════════════════ */
+function initReveal() {
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if(e.isIntersecting) { e.target.classList.add("visible"); obs.unobserve(e.target); } });
+  }, { threshold: 0.1 });
+  document.querySelectorAll(".reveal").forEach(el => obs.observe(el));
+}
+
+/* ═══════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════ */
+document.addEventListener("DOMContentLoaded", () => {
+  renderSteps();
+  renderFields();
+  renderLifecycle();
+  renderTips();
+  renderFAQ();
+  setTimeout(initReveal, 100);
+  // re-check after tips render
+  setTimeout(initReveal, 400);
+});
+</script>
+</body>
+</html>
